@@ -48,6 +48,12 @@
 				},
 				{
 					"name": "CanalOnline"
+				},
+				{
+					"name": "LPZunionSCZ"
+				},
+				{
+					"name": "LPZunionSCZunionOnline"
 				}
 			],
 			"scriptLines": [
@@ -112,8 +118,8 @@
 				"     skipDuplicateMapInputs: true,",
 				"     skipDuplicateMapOutputs: true) ~> NombresEstandarizadosLPZ",
 				"source2 select(mapColumn(",
-				"          {id_transaccion_origen _venta} = id_venta,",
-				"          fecha_venta = fecha,",
+				"          {id_transaccion_origen } = id_venta,",
+				"          {fecha_venta } = fecha,",
 				"          {nombre_producto_original } = producto,",
 				"          {cantidad } = cantidad,",
 				"          {precio_unitario } = precio_unitario,",
@@ -125,7 +131,7 @@
 				"     skipDuplicateMapOutputs: true) ~> NombresEstandarizadosSCZ",
 				"source3 select(mapColumn(",
 				"          {id_transaccion_origen } = order_id,",
-				"          fecha_venta = timestamp,",
+				"          {fecha_venta } = timestamp,",
 				"          {nombre_producto_original } = product,",
 				"          {cantidad } = qty,",
 				"          {precio_unitario } = unit_price,",
@@ -138,7 +144,9 @@
 				"     skipDuplicateMapOutputs: true) ~> NombresEstandarizadosOL",
 				"NombresEstandarizadosLPZ derive({canal_venta } = \"LPZ\") ~> CanalLPZ",
 				"NombresEstandarizadosSCZ derive({canal_venta } = \"SCZ\") ~> CanalSCZ",
-				"NombresEstandarizadosOL derive({canal_venta } = \"Online\") ~> CanalOnline"
+				"NombresEstandarizadosOL derive({canal_venta } = \"Online\") ~> CanalOnline",
+				"CanalLPZ, CanalSCZ union(byName: true)~> LPZunionSCZ",
+				"LPZunionSCZ, CanalOnline union(byName: true)~> LPZunionSCZunionOnline"
 			]
 		}
 	}
