@@ -54,6 +54,9 @@
 				},
 				{
 					"name": "LPZunionSCZunionOnline"
+				},
+				{
+					"name": "derivedColumn1"
 				}
 			],
 			"scriptLines": [
@@ -146,7 +149,49 @@
 				"NombresEstandarizadosSCZ derive({canal_venta } = \"SCZ\") ~> CanalSCZ",
 				"NombresEstandarizadosOL derive({canal_venta } = \"Online\") ~> CanalOnline",
 				"CanalLPZ, CanalSCZ union(byName: true)~> LPZunionSCZ",
-				"LPZunionSCZ, CanalOnline union(byName: true)~> LPZunionSCZunionOnline"
+				"LPZunionSCZ, CanalOnline union(byName: true)~> LPZunionSCZunionOnline",
+				"LPZunionSCZunionOnline derive({fecha_venta } = iif(\r",
+				"    isDate({fecha_venta }, 'yyyy-MM-dd'),\r",
+				"    toDate({fecha_venta }, 'yyyy-MM-dd'),\r",
+				"\r",
+				"    iif(\r",
+				"        isDate({fecha_venta }, 'MM-dd-yyyy'),\r",
+				"        toDate({fecha_venta }, 'MM-dd-yyyy'),\r",
+				"\r",
+				"        iif(\r",
+				"            isDate({fecha_venta }, 'dd/MM/yyyy'),\r",
+				"            toDate({fecha_venta }, 'dd/MM/yyyy'),\r",
+				"\r",
+				"            iif(\r",
+				"                isDate({fecha_venta }, 'yyyy/MM/dd'),\r",
+				"                toDate({fecha_venta }, 'yyyy/MM/dd'),\r",
+				"\r",
+				"                iif(\r",
+				"                    isDate({fecha_venta }, 'dd-MMM-yyyy'),\r",
+				"                    toDate({fecha_venta }, 'dd-MMM-yyyy'),\r",
+				"\r",
+				"                    iif(\r",
+				"                        isDate({fecha_venta }, 'MMMM dd, yyyy'),\r",
+				"                        toDate({fecha_venta }, 'MMMM dd, yyyy'),\r",
+				"\r",
+				"                        toDate('1900-01-01')\r",
+				"                    )\r",
+				"                )\r",
+				"            )\r",
+				"        )\r",
+				"    )\r",
+				")\r",
+				",",
+				"          {nombre_producto_original } = initCap(regexReplace(trim({nombre_producto_original }), '\\\\s+', ' ')),",
+				"          {precio_unitario } = round(\r",
+				"    toDecimal(\r",
+				"        regexReplace(\r",
+				"            lower(toString({precio_unitario })),\r",
+				"            '[^0-9]',\r",
+				"            ''\r",
+				"        )\r",
+				"    ) / 100,\r",
+				"2)) ~> derivedColumn1"
 			]
 		}
 	}

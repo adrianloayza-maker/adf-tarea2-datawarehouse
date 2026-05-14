@@ -5,6 +5,9 @@
 			"referenceName": "datalake_ventas",
 			"type": "LinkedServiceReference"
 		},
+		"folder": {
+			"name": "bronze"
+		},
 		"annotations": [],
 		"type": "Excel",
 		"typeProperties": {
