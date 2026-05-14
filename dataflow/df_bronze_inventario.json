@@ -1,0 +1,188 @@
+{
+	"name": "df_bronze_inventario",
+	"properties": {
+		"folder": {
+			"name": "bronze"
+		},
+		"type": "MappingDataFlow",
+		"typeProperties": {
+			"sources": [
+				{
+					"dataset": {
+						"referenceName": "inventario_xlsx",
+						"type": "DatasetReference"
+					},
+					"name": "source1"
+				}
+			],
+			"sinks": [
+				{
+					"dataset": {
+						"referenceName": "silver_inventario",
+						"type": "DatasetReference"
+					},
+					"name": "sink1"
+				}
+			],
+			"transformations": [
+				{
+					"name": "LimpiezaInicial"
+				},
+				{
+					"name": "ProductoCategoria"
+				},
+				{
+					"name": "PrecioActivoSucursal"
+				},
+				{
+					"name": "Fecha"
+				},
+				{
+					"name": "EliminarNulos"
+				},
+				{
+					"name": "select1"
+				},
+				{
+					"name": "EliminarCodigosDuplicados"
+				}
+			],
+			"scriptLines": [
+				"source(output(",
+				"          codigo_producto as string,",
+				"          nombre_producto as string,",
+				"          categoria as string,",
+				"          precio_venta as string,",
+				"          costo_adquisicion as string,",
+				"          stock_actual as string,",
+				"          stock_minimo as string,",
+				"          sucursal as string,",
+				"          proveedor as string,",
+				"          ultima_reposicion as string,",
+				"          activo as string",
+				"     ),",
+				"     allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     ignoreNoFilesFound: false) ~> source1",
+				"source1 derive(codigo_producto = trim(codigo_producto),",
+				"          nombre_producto = lower(trim(nombre_producto)),",
+				"          categoria = lower(trim(categoria)),",
+				"          sucursal = trim(sucursal),",
+				"          proveedor = trim(proveedor)) ~> LimpiezaInicial",
+				"LimpiezaInicial derive(nombre_producto = initCap(regexReplace(nombre_producto, '\\\\s+', ' ')),",
+				"          categoria = case(\r",
+				"    in(['computadoras', 'laptops', 'pcs'], categoria), 'Computadoras',\r",
+				"    in(['monitores', 'pantallas'], categoria), 'Monitores',\r",
+				"    in(['perifericos', 'periféricos'], categoria), 'Perifericos',\r",
+				"    in(['audio', 'sonido'], categoria), 'Audio',\r",
+				"    in(['tablets', 'tabletas'], categoria), 'Tablets',\r",
+				"    in(['impresoras', 'printers'], categoria), 'Impresoras',\r",
+				"    in(['almacenamiento', 'storage'], categoria), 'Almacenamiento',\r",
+				"    in(['accesorios', 'acc.'], categoria), 'Accesorios',\r",
+				"    in(['redes', 'networking'], categoria), 'Redes',\r",
+				"    in(['componentes', 'hardware'], categoria), 'Componentes',\r",
+				"    categoria\r",
+				")) ~> ProductoCategoria",
+				"ProductoCategoria derive(precio_venta = toFloat(regexReplace(toString(precio_venta), '[^0-9.]', '')),",
+				"          activo = iif(in(['si', 'true', '1', 'yes'], lower(trim(toString(activo)))), true(), false()),",
+				"          sucursal = case(\r",
+				"    in(['SCZ', 'Santa Cruz', 'Sta Cruz', 'santa cruz'], sucursal), 'Santa Cruz',\r",
+				"    in(['LPZ', 'La Paz', 'LP', 'la paz'], sucursal), 'La Paz',\r",
+				"    sucursal\r",
+				")) ~> PrecioActivoSucursal",
+				"PrecioActivoSucursal derive(ultima_reposicion = iif(\r",
+				"    isDate(ultima_reposicion, 'yyyy-MM-dd'),\r",
+				"    toDate(ultima_reposicion, 'yyyy-MM-dd'),\r",
+				"\r",
+				"    iif(\r",
+				"        isDate(ultima_reposicion, 'MM-dd-yyyy'),\r",
+				"        toDate(ultima_reposicion, 'MM-dd-yyyy'),\r",
+				"\r",
+				"        iif(\r",
+				"            isDate(ultima_reposicion, 'dd/MM/yyyy'),\r",
+				"            toDate(ultima_reposicion, 'dd/MM/yyyy'),\r",
+				"\r",
+				"            iif(\r",
+				"                isDate(ultima_reposicion, 'yyyy/MM/dd'),\r",
+				"                toDate(ultima_reposicion, 'yyyy/MM/dd'),\r",
+				"\r",
+				"                iif(\r",
+				"                    isDate(ultima_reposicion, 'dd-MMM-yyyy'),\r",
+				"                    toDate(ultima_reposicion, 'dd-MMM-yyyy'),\r",
+				"\r",
+				"                    iif(\r",
+				"                        isDate(ultima_reposicion, 'MMMM dd, yyyy'),\r",
+				"                        toDate(ultima_reposicion, 'MMMM dd, yyyy'),\r",
+				"\r",
+				"                        toDate('1900-01-01')\r",
+				"                    )\r",
+				"                )\r",
+				"            )\r",
+				"        )\r",
+				"    )\r",
+				")) ~> Fecha",
+				"Fecha derive(precio_venta = toDecimal(iifNull(precio_venta, 0.0, precio_venta)),",
+				"          costo_adquisicion = toDecimal(iifNull(costo_adquisicion, \"0.0\", costo_adquisicion)),",
+				"          stock_actual = toInteger(stock_actual)) ~> EliminarNulos",
+				"EliminarNulos select(mapColumn(",
+				"          codigo_producto,",
+				"          nombre_producto,",
+				"          categoria,",
+				"          precio_venta,",
+				"          costo_adquisicion,",
+				"          stock_actual,",
+				"          sucursal,",
+				"          proveedor,",
+				"          ultima_reposicion,",
+				"          activo",
+				"     ),",
+				"     skipDuplicateMapInputs: true,",
+				"     skipDuplicateMapOutputs: true) ~> select1",
+				"select1 aggregate(groupBy(codigo_producto),",
+				"     stock_actual = sum(stock_actual),",
+				"          nombre_producto = first(nombre_producto),",
+				"          categoria = first(categoria),",
+				"          precio_venta = first(precio_venta),",
+				"          costo_adquisicion = first(costo_adquisicion),",
+				"          sucursal = first(sucursal),",
+				"          proveedor = first(proveedor),",
+				"          ultima_reposicion = first(ultima_reposicion),",
+				"          activo = first(activo)) ~> EliminarCodigosDuplicados",
+				"EliminarCodigosDuplicados sink(allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     input(",
+				"          codigo_producto as string,",
+				"          nombre_producto as string,",
+				"          categoria as string,",
+				"          precio_venta as decimal(18,2),",
+				"          costo_adquisicion as decimal(18,2),",
+				"          stock_actual as integer,",
+				"          sucursal as string,",
+				"          proveedor as string,",
+				"          ultima_reposicion as date,",
+				"          activo as boolean",
+				"     ),",
+				"     deletable:false,",
+				"     insertable:true,",
+				"     updateable:false,",
+				"     upsertable:false,",
+				"     format: 'table',",
+				"     skipDuplicateMapInputs: true,",
+				"     skipDuplicateMapOutputs: true,",
+				"     errorHandlingOption: 'stopOnFirstError',",
+				"     mapColumn(",
+				"          codigo_producto,",
+				"          nombre_producto,",
+				"          categoria,",
+				"          precio_venta,",
+				"          costo_adquisicion,",
+				"          stock_actual,",
+				"          sucursal,",
+				"          proveedor,",
+				"          ultima_reposicion,",
+				"          activo",
+				"     )) ~> sink1"
+			]
+		}
+	}
+}
